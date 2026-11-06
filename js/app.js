@@ -1354,6 +1354,11 @@
     if (draft && draft.data) {
       reporteWizard.step = draft.step || 0;
       reporteWizard.data = draft.data;
+      // Un borrador viejo (ej. guardado antes de tener usuario identificado,
+      // o de una prueba anterior) puede traer estos dos campos vacios --
+      // completarlos con el valor por defecto en vez de dejarlos en blanco.
+      if (!reporteWizard.data.diligenciaNombre) reporteWizard.data.diligenciaNombre = app.currentUser.nombre || "";
+      if (!reporteWizard.data.diligenciaTelefono) reporteWizard.data.diligenciaTelefono = app.currentUser.telefono || "";
       toast("Se restauró tu reporte sin terminar.");
     } else {
       reporteWizard.step = 0;
