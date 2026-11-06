@@ -694,10 +694,10 @@
   // que no esta corriendo dentro de un iframe de Zoho (ver boot al final del
   // archivo).
   var PERFILES_DEMO_LOCAL = [
-    { email: "demo.gestor@local.test", nombre: "Demo Gestor E.S.E.", rol: ROLES.GESTOR_ESE, institucion: "E.S.E. Pasto" },
-    { email: "demo.lider@local.test", nombre: "Demo Líder Cohorte", rol: ROLES.LIDER_EPS, institucion: "EMSSANAR" },
-    { email: "demo.navegador@local.test", nombre: "Demo Navegador IPS", rol: ROLES.NAVEGADOR_IPS, institucion: "Instituto Cancerológico de Nariño (ICN)" },
-    { email: "demo.admin@local.test", nombre: "Demo Administrador", rol: ROLES.ADMIN, institucion: "" }
+    { email: "demo.gestor@local.test", nombre: "Demo Gestor E.S.E.", telefono: "3001234567", rol: ROLES.GESTOR_ESE, institucion: "E.S.E. Pasto" },
+    { email: "demo.lider@local.test", nombre: "Demo Líder Cohorte", telefono: "3001234567", rol: ROLES.LIDER_EPS, institucion: "EMSSANAR" },
+    { email: "demo.navegador@local.test", nombre: "Demo Navegador IPS", telefono: "3001234567", rol: ROLES.NAVEGADOR_IPS, institucion: "Instituto Cancerológico de Nariño (ICN)" },
+    { email: "demo.admin@local.test", nombre: "Demo Administrador", telefono: "3001234567", rol: ROLES.ADMIN, institucion: "" }
   ];
   var LOCAL_ROLE_KEY = "onco_modo_local_rol";
 
@@ -717,7 +717,7 @@
     var idx = stashed !== null ? Number(stashed) : null;
     if (idx !== null && PERFILES_DEMO_LOCAL[idx]) {
       var p = PERFILES_DEMO_LOCAL[idx];
-      app.currentUser = { email: p.email, nombre: p.nombre, telefono: "", rol: p.rol, institucion: p.institucion };
+      app.currentUser = { email: p.email, nombre: p.nombre, telefono: p.telefono || "", rol: p.rol, institucion: p.institucion };
       app._modoLocal = true;
       if (!MOCK) {
         MOCK = cargarMockGuardado();
