@@ -168,6 +168,7 @@
   // clinicos estandar y la pregunta si/no de adherencia a guia de manejo.
   var ESTADIOS_CLINICOS = ["I", "II", "III", "IV", "No determinado"];
   var HORARIOS_CONTACTO = ["Mañana", "Tarde", "Noche", "Cualquier hora"];
+  var PARENTESCO_OPCIONES = ["Padre", "Madre", "Esposo/a", "Hijo/a", "Hermano/a", "Abuelo/a", "Tío/a", "Cuidador/allegado", "Otro"];
 
   var IDENTIFY_KEY = "onco_identify_override";
 
@@ -1290,6 +1291,10 @@
         var checked = selected.indexOf(o) !== -1 ? " checked" : "";
         return '<label class="checkbox-option"><input type="checkbox" value="' + escapeHtml(o) + '"' + checked + " />" + escapeHtml(o) + "</label>";
       }).join("") + "</div>";
+    } else if (opts.type === "radio") {
+      inner = '<div class="chip-radio-group" id="' + id + '">' + (opts.options || []).map(function (o) {
+        return '<div class="chip-radio-option' + (o === opts.value ? " active" : "") + '" data-value="' + escapeHtml(o) + '"><span>' + escapeHtml(o) + "</span><span class=\"radio-dot\"></span></div>";
+      }).join("") + "</div>";
     } else if (opts.type === "textarea") {
       inner = '<textarea id="' + id + '" rows="' + (opts.rows || 3) + '" placeholder="' + escapeHtml(opts.placeholder || "") + '"' + req + ">" + escapeHtml(opts.value || "") + "</textarea>";
     } else {
@@ -1305,6 +1310,23 @@
     var container = $(id);
     if (!container) return [];
     return Array.prototype.slice.call(container.querySelectorAll('input[type="checkbox"]:checked')).map(function (el) { return el.value; });
+  }
+  // Grupo de "chip-radio-option" (mismo patron visual que el tipo de
+  // barrera en abrirModalReportarBarrera), pero genérico vía fieldHtml({type:"radio"}).
+  function radioVal(id) {
+    var container = $(id);
+    var active = container && container.querySelector(".chip-radio-option.active");
+    return active ? active.dataset.value : "";
+  }
+  function wireRadioGroup(id) {
+    var group = $(id);
+    if (!group) return;
+    Array.prototype.forEach.call(group.querySelectorAll(".chip-radio-option"), function (opt) {
+      opt.addEventListener("click", function () {
+        Array.prototype.forEach.call(group.querySelectorAll(".chip-radio-option"), function (o) { o.classList.remove("active"); });
+        opt.classList.add("active");
+      });
+    });
   }
   // Onco_Eventos.Fecha_Evento es un campo Fecha y hora en Zoho; los
   // <input type="date"> del formulario solo dan "YYYY-MM-DD", asi que hay
@@ -1359,12 +1381,17 @@
       // completarlos con el valor por defecto en vez de dejarlos en blanco.
       if (!reporteWizard.data.diligenciaNombre) reporteWizard.data.diligenciaNombre = app.currentUser.nombre || "";
       if (!reporteWizard.data.diligenciaTelefono) reporteWizard.data.diligenciaTelefono = app.currentUser.telefono || "";
+      // "Prueba confirmatoria ordenada" ya no se pregunta en el formulario --
+      // queda forzado a "Si" siempre, incluso si un borrador viejo (de antes
+      // de este cambio) trae "No" guardado.
+      reporteWizard.data.pruebaOrdenada = "Si";
       toast("Se restauró tu reporte sin terminar.");
     } else {
       reporteWizard.step = 0;
       reporteWizard.data = {
         diligenciaNombre: app.currentUser.nombre || "",
-        diligenciaTelefono: app.currentUser.telefono || ""
+        diligenciaTelefono: app.currentUser.telefono || "",
+        pruebaOrdenada: "Si"
       };
     }
     renderReportarCasoStep();
@@ -1377,9 +1404,10 @@
     }).join("") + '</div><div class="stepper-label">Paso ' + (reporteWizard.step + 1) + " de " + REPORTE_STEPS.length + " · " + REPORTE_STEPS[reporteWizard.step] + "</div></div>";
   }
 
-  function collectStepInputs(ids, checkboxIds) {
+  function collectStepInputs(ids, checkboxIds, radioIds) {
     ids.forEach(function (id) { reporteWizard.data[id] = val(id); });
     (checkboxIds || []).forEach(function (id) { reporteWizard.data[id] = checkboxVals(id); });
+    (radioIds || []).forEach(function (id) { reporteWizard.data[id] = radioVal(id); });
   }
 
   function renderReportarCasoStep() {
@@ -1388,6 +1416,7 @@
     var body = "";
     var stepIds = [];
     var stepCheckboxIds = [];
+    var stepRadioIds = [];
 
     if (reporteWizard.step === 0) {
       stepIds = ["diligenciaNombre", "diligenciaTelefono"];
@@ -1414,31 +1443,32 @@
         fieldHtml({ id: "ipsAtencionActual", label: "IPS donde es atendido hoy", type: "select", options: app.picklists.Ips_Oncologica, value: d.ipsAtencionActual, required: true }) +
         fieldHtml({ id: "tipoCancer", label: "Tipo de cáncer sospechado / con barrera", type: "select", options: app.picklists.Tipo_Cancer, value: d.tipoCancer, required: true });
     } else if (reporteWizard.step === 2) {
-      stepIds = ["telefono1", "telefono2", "correo", "direccion", "recomendaciones", "acudienteNombre", "acudienteTelefono", "acudienteDireccion", "acudienteParentesco"];
+      stepIds = ["telefono1", "telefono2", "correo", "direccion", "acudienteNombre", "acudienteTelefono", "acudienteDireccion", "acudienteParentesco"];
+      stepRadioIds = ["recomendaciones"];
       body = '<div class="form-row">' +
         fieldHtml({ id: "telefono1", label: "Teléfono 1", type: "tel", value: d.telefono1, required: true }) +
         fieldHtml({ id: "telefono2", label: "Teléfono 2 (opcional)", type: "tel", value: d.telefono2 }) +
         "</div>" +
         fieldHtml({ id: "correo", label: "Correo electrónico (opcional)", type: "email", value: d.correo }) +
         fieldHtml({ id: "direccion", label: "Dirección actual de residencia", value: d.direccion, required: true }) +
-        fieldHtml({ id: "recomendaciones", label: "Mejor horario para llamar (opcional)", type: "select", options: HORARIOS_CONTACTO, value: d.recomendaciones, placeholder: "Selecciona un horario" }) +
+        fieldHtml({ id: "recomendaciones", label: "Mejor horario para llamar (opcional)", type: "radio", options: HORARIOS_CONTACTO, value: d.recomendaciones }) +
         '<div class="form-row">' +
         fieldHtml({ id: "acudienteNombre", label: "Nombre del acudiente", value: d.acudienteNombre }) +
         fieldHtml({ id: "acudienteTelefono", label: "Teléfono del acudiente", type: "tel", value: d.acudienteTelefono }) +
         "</div>" +
         '<div class="form-row">' +
         fieldHtml({ id: "acudienteDireccion", label: "Dirección del acudiente", value: d.acudienteDireccion }) +
-        fieldHtml({ id: "acudienteParentesco", label: "Parentesco del acudiente", value: d.acudienteParentesco }) +
+        fieldHtml({ id: "acudienteParentesco", label: "Parentesco del acudiente", type: "select", options: PARENTESCO_OPCIONES, value: d.acudienteParentesco, placeholder: "Selecciona (opcional)" }) +
         "</div>";
     } else if (reporteWizard.step === 3) {
       stepIds = [];
       stepCheckboxIds = ["grupoPoblacional", "factoresCriticidad"];
+      // "¿Se ordeno prueba confirmatoria?" ya no se le pregunta al usuario --
+      // queda siempre en "Si" (ver abrirModalReportarCaso), a pedido
+      // explicito: antes solo quedaba en seguimiento manual (Sin_Prueba_Ordenada)
+      // si alguien elegia "No", caso que ya no se usa desde el wizard.
       body = fieldHtml({ id: "grupoPoblacional", label: "Grupo poblacional (si aplica)", type: "checkboxes", options: app.picklists.Grupo_Poblacional, value: d.grupoPoblacional }) +
-        fieldHtml({ id: "factoresCriticidad", label: "Factores de criticidad del caso (opcional)", type: "checkboxes", options: app.picklists.Factores_Criticidad, value: d.factoresCriticidad }) +
-        '<div class="field"><label>¿Se ordenó prueba confirmatoria?</label><div class="toggle-pair" id="prueba-ordenada-toggle">' +
-        '<div class="toggle-opt ' + (d.pruebaOrdenada === "Si" ? "active" : "") + '" data-value="Si">Sí</div>' +
-        '<div class="toggle-opt ' + (d.pruebaOrdenada === "No" ? "active" : "") + '" data-value="No">No</div>' +
-        "</div><div class=\"field-hint\">Si eliges \"No\", el caso queda en un estado de seguimiento manual en vez de avanzar directo a autorización (ver README, supuesto 6.1).</div></div>";
+        fieldHtml({ id: "factoresCriticidad", label: "Factores de criticidad del caso (opcional)", type: "checkboxes", options: app.picklists.Factores_Criticidad, value: d.factoresCriticidad });
     } else {
       body = '<div class="panel">' +
         "<div class=\"panel-title\">" + escapeHtml(d.nombres + " " + d.apellidos) + "</div>" +
@@ -1446,8 +1476,7 @@
         "<div style=\"font-size:12.5px;color:var(--ink-2);line-height:1.6;\">" +
         escapeHtml(d.municipio) + " · " + escapeHtml(d.aseguradorEps) + " · " + escapeHtml(d.regimenAfiliacion) + "<br/>" +
         "Sospecha: " + escapeHtml(d.tipoCancer) + "<br/>" +
-        "IPS actual: " + escapeHtml(d.ipsAtencionActual) + "<br/>" +
-        "Prueba confirmatoria ordenada: " + escapeHtml(d.pruebaOrdenada || "No indicado") +
+        "IPS actual: " + escapeHtml(d.ipsAtencionActual) +
         "</div></div>" +
         '<p class="field-hint" style="margin-top:12px;">Al enviar, se busca si ya existe un paciente con este número de documento (para no duplicarlo) y se crea el caso.</p>';
     }
@@ -1469,7 +1498,7 @@
         if (!numero) { if (notice) notice.innerHTML = ""; return; }
         if (notice) notice.innerHTML = '<div class="notice-box brand">Buscando paciente...</div>';
         buscarPacientePorDocumento(numero).then(function (p) {
-          collectStepInputs(stepIds, stepCheckboxIds);
+          collectStepInputs(stepIds, stepCheckboxIds, stepRadioIds);
           if (!p) {
             reporteWizard.data.pacienteExistenteId = null;
             renderReportarCasoStep();
@@ -1509,23 +1538,15 @@
       });
     }
 
-    if (reporteWizard.step === 3) {
-      Array.prototype.forEach.call($("prueba-ordenada-toggle").querySelectorAll(".toggle-opt"), function (opt) {
-        opt.addEventListener("click", function () {
-          collectStepInputs(stepIds, stepCheckboxIds);
-          reporteWizard.data.pruebaOrdenada = opt.dataset.value;
-          renderReportarCasoStep();
-        });
-      });
-    }
+    if (reporteWizard.step === 2) wireRadioGroup("recomendaciones");
 
     $("reporte-prev-btn").addEventListener("click", function () {
-      collectStepInputs(stepIds, stepCheckboxIds);
+      collectStepInputs(stepIds, stepCheckboxIds, stepRadioIds);
       reporteWizard.step -= 1;
       renderReportarCasoStep();
     });
     $("reporte-next-btn").addEventListener("click", function () {
-      collectStepInputs(stepIds, stepCheckboxIds);
+      collectStepInputs(stepIds, stepCheckboxIds, stepRadioIds);
       if (reporteWizard.step < REPORTE_STEPS.length - 1) {
         var required = $("reporte-modal-body").querySelectorAll("[required]");
         var missing = Array.prototype.some.call(required, function (i) { return !i.value.trim(); });

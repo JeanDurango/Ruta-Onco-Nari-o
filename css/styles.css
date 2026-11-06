@@ -333,6 +333,7 @@ table.data-table tbody tr.clickable:hover { background: var(--page); }
 .toggle-opt:hover { transform: translateY(-1px); }
 .toggle-opt.active { border: 1.5px solid var(--brand-600); background: var(--brand-soft); color: var(--brand-600); font-weight: 600; box-shadow: 0 2px 8px rgba(76, 84, 168, .15); }
 
+.chip-radio-group { display: flex; flex-direction: column; gap: 6px; }
 .chip-radio-option {
   border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm);
   padding: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 13.5px; color: var(--ink-2);
