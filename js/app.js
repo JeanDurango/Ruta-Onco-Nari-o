@@ -323,7 +323,14 @@
     } catch (e) { return null; }
   }
   function reiniciarDatosDemo() {
-    try { sessionStorage.removeItem(MOCK_DATA_KEY); } catch (e) {}
+    // Guarda una base explicitamente vacia (no solo borra la clave) -- si
+    // solo se borrara, al recargar iniciarModoLocal() no encontraria nada
+    // guardado y volveria a llamar construirMockData(), que es deterministico
+    // (usa indices, no aleatorio) y siempre arma el mismo set de 60 casos de
+    // ejemplo. Eso hacia parecer que "reiniciar" no hacia nada.
+    try {
+      sessionStorage.setItem(MOCK_DATA_KEY, JSON.stringify({ Onco_Pacientes: [], Onco_Casos: [], Onco_Tareas: [], Onco_Alertas: [] }));
+    } catch (e) {}
     location.reload();
   }
 
