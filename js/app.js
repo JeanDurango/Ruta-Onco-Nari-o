@@ -505,6 +505,19 @@
   function zSearch(module, criteria) {
     if (MOCK) {
       var rows = (MOCK[module] || []).filter(function (r) { return mockMatch(r, criteria); });
+      // Emula el rollup de Lookup de Zoho real: el Paciente de un caso vuelve
+      // de la API como {id, name}, no solo {id} (ver comentario de lookupId
+      // mas abajo). Sin esto, la columna "Paciente" de Bandeja/Agenda queda
+      // sin nombre para cualquier caso que no se haya creado en esta misma
+      // sesion (los de la data semilla de demo).
+      if (module === "Onco_Casos") {
+        rows = rows.map(function (r) {
+          var pid = r.Paciente && typeof r.Paciente === "object" ? r.Paciente.id : r.Paciente;
+          var p = pid && (MOCK.Onco_Pacientes || []).find(function (x) { return x.id === pid; });
+          if (!p) return r;
+          return Object.assign({}, r, { Paciente: { id: pid, name: p.Name || ((p.Nombres || "") + " " + (p.Apellidos || "")).trim() } });
+        });
+      }
       return Promise.resolve(rows.slice());
     }
     if (!CATALYST_BASE_URL) {
@@ -934,6 +947,19 @@
   // Los campos de tipo Lookup vuelven de ZOHO.CRM.API como {id, name}, no
   // como el id crudo que se envio al insertar/actualizar.
   function lookupId(v) { return v && typeof v === "object" ? v.id : v; }
+
+  // El campo Paciente de un caso es un Lookup: en Zoho real vuelve como
+  // {id, name}, pero el name solo queda poblado por el servidor en busquedas
+  // posteriores a la insercion, no en el id crudo que mandamos al crear el
+  // caso. Por eso ademas revisamos app.pacientesById (cache local que ya se
+  // llena al reportar el caso y al visitar la ficha del paciente).
+  function nombrePacienteDeCaso(c) {
+    var p = c.Paciente;
+    if (p && typeof p === "object" && p.name) return p.name;
+    var cached = app.pacientesById[lookupId(p)];
+    if (cached) return cached.Name || ((cached.Nombres || "") + " " + (cached.Apellidos || "")).trim();
+    return "";
+  }
 
   function loadPaciente(id) {
     if (app.pacientesById[id]) return Promise.resolve(app.pacientesById[id]);
@@ -1759,8 +1785,10 @@
         var dias = daysSince(c.Fecha_de_Reporte) || 0;
         var esperaPill = dias > 5 ? { cls: "crit", text: dias + " días" } : dias > 2 ? { cls: "warn", text: dias + " días" } : { cls: "good", text: dias + (dias === 1 ? " día" : " días") };
         var tipo = c.Estado_Actual.indexOf("Prueba") === 0 ? "Prueba confirmatoria" : "Valoración con especialista";
+        var nombrePaciente = nombrePacienteDeCaso(c);
         return "<tr class=\"clickable\" data-caso-id=\"" + c.id + "\">" +
-          '<td class="cell-strong">' + escapeHtml(c.Name || c.Numero_Caso) + "</td>" +
+          '<td class="cell-strong">' + escapeHtml(nombrePaciente || c.Name || c.Numero_Caso) +
+          (nombrePaciente ? '<div class="case-card-sub">' + escapeHtml(c.Name || c.Numero_Caso || "") + "</div>" : "") + "</td>" +
           '<td class="cell-muted">' + escapeHtml(c.Municipio || "-") + "</td>" +
           '<td class="cell-muted">' + tipo + "</td>" +
           '<td class="cell-muted">' + fmtDate(c.Fecha_de_Reporte) + "</td>" +
