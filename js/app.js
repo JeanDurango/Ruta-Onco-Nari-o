@@ -337,11 +337,34 @@
 
   function mockId() { return "local_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8); }
 
-  function mockMatch(record, criterio) {
+  // Parsea el mini-lenguaje de criterios tipo Zoho "(campo:op:valor)(campo:op:valor)"
+  // contando profundidad de parentesis (no con una regex ingenua) porque el
+  // VALOR de una clausula puede traer sus propios parentesis -- ej. IPS
+  // "Instituto Cancerológico de Nariño (ICN)". Una regex que corta en el
+  // primer ")" que encuentra trunca ese valor a la mitad.
+  function parseCriterioClauses(criterio) {
     var clauses = [];
-    var re = /\(([^:()]+):([^:()]+):([^()]*)\)/g;
-    var m;
-    while ((m = re.exec(criterio))) clauses.push({ field: m[1], op: m[2], value: m[3] });
+    var i = 0;
+    while (i < criterio.length) {
+      if (criterio[i] !== "(") { i++; continue; }
+      var depth = 1, j = i + 1;
+      while (j < criterio.length && depth > 0) {
+        if (criterio[j] === "(") depth++;
+        else if (criterio[j] === ")") depth--;
+        j++;
+      }
+      var inner = criterio.slice(i + 1, j - 1);
+      var p1 = inner.indexOf(":");
+      var p2 = inner.indexOf(":", p1 + 1);
+      if (p1 !== -1 && p2 !== -1) {
+        clauses.push({ field: inner.slice(0, p1), op: inner.slice(p1 + 1, p2), value: inner.slice(p2 + 1) });
+      }
+      i = j;
+    }
+    return clauses;
+  }
+  function mockMatch(record, criterio) {
+    var clauses = parseCriterioClauses(criterio);
     return clauses.every(function (c) {
       var raw = record[c.field];
       var val = raw && typeof raw === "object" ? raw.id : raw;
@@ -509,6 +532,12 @@
     if (MOCK) {
       var rec = Object.assign({ id: mockId() }, data);
       MOCK[module] = MOCK[module] || [];
+      // En Zoho real, Onco_Casos.Name es un campo autonumerico que Zoho
+      // asigna solo -- el widget nunca lo manda. En modo mock nadie lo
+      // asigna, asi que sin esto quedaba vacio y las tablas (Mis casos,
+      // Bandeja, Agenda) mostraban la fila en blanco en vez de un numero de
+      // caso legible.
+      if (module === "Onco_Casos" && !rec.Name) rec.Name = "CASO-" + (1000 + MOCK[module].length);
       MOCK[module].unshift(rec);
       guardarMock();
       return Promise.resolve(rec.id);
@@ -550,7 +579,13 @@
   // de "not_equal a un valor imposible" que se uso al principio para traer
   // todo un modulo estaba mal y fallaba con INVALID_QUERY. Para "traer todo
   // sin filtro" se usa "in" con todos los valores posibles del picklist.
-  function eqClause(field, value) { return "(" + field + ":equals:" + String(value).replace(/[()]/g, "") + ")"; }
+  // Ojo: NO se le quitan parentesis al valor -- varias instituciones del
+  // catalogo oficial los traen de verdad (ej. "Instituto Cancerológico de
+  // Nariño (ICN)", "Hospital Universitario Departamental de Nariño
+  // (HUDN)"). Quitarlos (como se hacia antes) rompia la comparacion exacta
+  // contra el dato real guardado -- confirmado en vivo: los casos remitidos
+  // a esas IPS no le aparecian al Navegador de esa institucion.
+  function eqClause(field, value) { return "(" + field + ":equals:" + String(value) + ")"; }
   function andAll(clauses) { return clauses.join(""); }
   function inClause(field, values) { return "(" + field + ":in:" + values.join(",") + ")"; }
 
@@ -3015,7 +3050,7 @@
       });
     }
 
-    var right = '<div class="panel">' + accionPanelHtml(caso) + "</div>";
+    var right = '<div class="panel">' + accionPanelHtml(caso, paciente) + "</div>";
 
     els.content.innerHTML = backHeader("Volver") +
       '<div class="page-body" style="display:flex;flex-direction:column;gap:14px;">' +
@@ -3062,7 +3097,7 @@
 
   // ---- Panel de accion: decide que formulario mostrar segun rol + estado
 
-  function accionPanelHtml(caso) {
+  function accionPanelHtml(caso, paciente) {
     var rol = app.currentUser.rol;
     var e = caso.Estado_Actual;
 
@@ -3074,7 +3109,7 @@
       return '<div class="panel-title">Autorizar ' + (e === EST.PRUEBA_AUTORIZACION_PENDIENTE ? "prueba confirmatoria" : "valoración con especialista") + "</div>" +
         '<div class="panel-subtitle">Define la IPS oncológica de remisión</div>' +
         '<form id="accion-form" class="form-grid">' +
-        fieldHtml({ id: "af_ips", label: "IPS oncológica de remisión", type: "select", options: app.picklists.Ips_Oncologica, value: caso.Ips_Oncologica_Actual, required: true }) +
+        fieldHtml({ id: "af_ips", label: "IPS oncológica de remisión", type: "select", options: app.picklists.Ips_Oncologica, value: caso.Ips_Oncologica_Actual || (paciente && paciente.Ips_Atencion_Actual) || "", required: true }) +
         fieldHtml({ id: "af_fecha", label: "Fecha de autorización", type: "date", value: todayInputValue(), required: true }) +
         fieldHtml({ id: "af_comentario", label: "Comentarios (opcional)", type: "textarea" }) +
         '<button type="submit" class="btn btn-primary btn-block">Autorizar y remitir &rarr;</button></form>';
