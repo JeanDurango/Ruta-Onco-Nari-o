@@ -161,7 +161,7 @@
     // Catalogo oficial de instituciones con servicios oncologicos en Nariño,
     // dado por el IDSN (Compromiso N.4, "Respuesta a Compromisos OncoAPP.pdf")
     // -- reemplaza el catalogo provisional de 10 nombres genericos.
-    Ips_Oncologica: ["Fundación Hospital San Pedro – UFCA", "Hospital Universitario Departamental de Nariño (HUDN)", "Clínica Cardioneurovascular Pabón (atención adulta e infantil)", "Clínica Oncológica Aurora", "Instituto Cancerológico de Nariño (ICN)", "Hospital Infantil Los Ángeles – UACAI"]
+    Ips_Oncologica: ["Fundación Hospital San Pedro UFCA", "Hospital Universitario Departamental de Nariño (HUDN)", "Clínica Cardioneurovascular Pabón (atención adulta e infantil)", "Clínica Oncológica Aurora", "Instituto Cancerológico de Nariño (ICN)", "Hospital Infantil Los Ángeles UACAI"]
   };
 
   // Catalogos fijos (no dependen de un picklist editable en Zoho): estadios
