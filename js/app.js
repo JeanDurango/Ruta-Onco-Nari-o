@@ -437,7 +437,7 @@
         Regimen_Afiliacion: pick(FALLBACK_PICKLISTS.Regimen_Afiliacion, i),
         Asegurador_EPS: eps,
         Municipio: municipio,
-        Ips_Atencion_Actual: ips,
+        Ips_Atencion_Actual: ese,
         Telefono_1: "300" + String(1000000 + i * 37).slice(-7),
         Correo: "paciente.demo" + (i + 1) + "@local.test",
         Direccion: "Calle " + (10 + i) + " # " + (3 + i) + "-" + (20 + i) + ", " + municipio,
@@ -1360,7 +1360,8 @@
       inner = '<textarea id="' + id + '" rows="' + (opts.rows || 3) + '" placeholder="' + escapeHtml(opts.placeholder || "") + '"' + req + ">" + escapeHtml(opts.value || "") + "</textarea>";
     } else {
       var extraAttrs = opts.type === "tel" ? ' inputmode="numeric" pattern="[0-9]*"' : "";
-      inner = '<input type="' + (opts.type || "text") + '" id="' + id + '" value="' + escapeHtml(opts.value || "") + '" placeholder="' + escapeHtml(opts.placeholder || "") + '"' + req + extraAttrs + " />";
+      var disAttr = opts.disabled ? " disabled" : "";
+      inner = '<input type="' + (opts.type || "text") + '" id="' + id + '" value="' + escapeHtml(opts.value || "") + '" placeholder="' + escapeHtml(opts.placeholder || "") + '"' + req + extraAttrs + disAttr + " />";
     }
     return '<div class="field">' + (opts.label ? "<label for=\"" + id + "\">" + escapeHtml(opts.label) + "</label>" : "") + inner +
       (opts.hint ? '<div class="field-hint">' + escapeHtml(opts.hint) + "</div>" : "") + "</div>";
@@ -1501,7 +1502,7 @@
         fieldHtml({ id: "aseguradorEps", label: "Asegurador (EPS)", type: "select", options: app.picklists.Asegurador_EPS, value: d.aseguradorEps, required: true }) +
         "</div>" +
         fieldHtml({ id: "municipio", label: "Municipio de residencia", type: "select", options: app.picklists.Municipio, value: d.municipio, required: true }) +
-        fieldHtml({ id: "ipsAtencionActual", label: "IPS donde es atendido hoy", type: "select", options: app.picklists.Ips_Oncologica, value: d.ipsAtencionActual, required: true }) +
+        fieldHtml({ id: "ipsAtencionActual", label: "E.S.E. atendido hoy", value: app.currentUser.institucion, disabled: true, hint: "Se toma automáticamente de tu institución." }) +
         fieldHtml({ id: "tipoCancer", label: "Tipo de cáncer sospechado / con barrera", type: "select", options: app.picklists.Tipo_Cancer, value: d.tipoCancer, required: true });
     } else if (reporteWizard.step === 2) {
       stepIds = ["telefono1", "telefono2", "correo", "direccion", "acudienteNombre", "acudienteTelefono", "acudienteDireccion", "acudienteParentesco"];
@@ -1537,7 +1538,7 @@
         "<div style=\"font-size:12.5px;color:var(--ink-2);line-height:1.6;\">" +
         escapeHtml(d.municipio) + " · " + escapeHtml(d.aseguradorEps) + " · " + escapeHtml(d.regimenAfiliacion) + "<br/>" +
         "Sospecha: " + escapeHtml(d.tipoCancer) + "<br/>" +
-        "IPS actual: " + escapeHtml(d.ipsAtencionActual) +
+        "E.S.E. atendido hoy: " + escapeHtml(d.ipsAtencionActual) +
         "</div></div>" +
         '<p class="field-hint" style="margin-top:12px;">Al enviar, se busca si ya existe un paciente con este número de documento (para no duplicarlo) y se crea el caso.</p>';
     }
@@ -1574,7 +1575,6 @@
           reporteWizard.data.regimenAfiliacion = p.Regimen_Afiliacion || reporteWizard.data.regimenAfiliacion;
           reporteWizard.data.aseguradorEps = p.Asegurador_EPS || reporteWizard.data.aseguradorEps;
           reporteWizard.data.municipio = p.Municipio || reporteWizard.data.municipio;
-          reporteWizard.data.ipsAtencionActual = p.Ips_Atencion_Actual || reporteWizard.data.ipsAtencionActual;
           renderReportarCasoStep();
           // Se revisa aparte (sin volver a redibujar todo el paso) si ese
           // paciente ya tiene un caso activo, para avisar de una vez en vez
